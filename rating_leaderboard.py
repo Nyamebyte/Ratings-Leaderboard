@@ -7,6 +7,7 @@ The ratings and activity will be updated in the Excel file.
 
 import lichess
 import openpyxl
+from datetime import datetime
 
 
 def get_rating(username, control):
@@ -34,32 +35,20 @@ def write_rating(rating_list):
     wb.save("players.xlsx")
 
 
-def check_key(dictionary, target_key):
-    # Recursive function. Returns a boolean value for a single instance of an activity
-    if isinstance(dictionary, dict):
-        if target_key in dictionary:
-            return True
-        else:
-            for key, value in dictionary.items():
-                if isinstance(value, dict):
-                    if check_key(value, target_key):
-                        return True
-    return False
-
-
 def check_activity(username, control):
-    # This function checks for the weekly activity of the player
-    client = lichess.Client()
-    user = client.get_activity(f'{username}')
-    # Create a list with boolean values of daily activity of time control
-    activity = []
-    for item in user:
-        value = check_key(item, f'{control}')
-        activity.append(value)
-    status = "Inactive"
-    if True in activity:
-        status = "Active"
-    return status
+    current_time = datetime.now().timestamp() * 1000  # Convert to milliseconds
+    seven_days_ago = current_time - 7 * 24 * 60 * 60 * 1000  # Seven days in milliseconds
+
+    myClient = lichess.Client()
+    user = myClient.get_activity(f'{username}')
+
+    for entry in user:
+        interval_start = entry['interval']['start']
+        if interval_start >= seven_days_ago:
+            if 'games' in entry and f'{control}' in entry['games']:
+                return True
+
+    return False
 
 
 def write_activity(status_list):
@@ -90,7 +79,10 @@ def main():
     status_list = []
     for username in player_list:
         status = check_activity(username, control)
-        status_list.append(status)
+        activity = 'Inactive'
+        if status:
+            activity = 'Active'
+        status_list.append(activity)
     write_activity(status_list)
     print("Status updated!")
 
